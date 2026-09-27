@@ -9,8 +9,7 @@ directory = "public"
 [[d1_databases]]
 binding = "DB"
 database_name = "jan-telemetry"
-# Replace with the id printed by `npx wrangler d1 create jan-telemetry`. Local dev ignores it.
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "53f7e7b2-9a82-4d44-b71e-1a6edc5efb5c"
 migrations_dir = "migrations"
 
 [triggers]

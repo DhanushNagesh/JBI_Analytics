@@ -29,9 +29,10 @@ Fake history for looking at the dashboard: `python3 test/seed_local.py > /tmp/se
 npx wrangler login
 npx wrangler d1 create jan-telemetry           # paste database_id into wrangler.toml
 npx wrangler d1 migrations apply DB --remote
-openssl rand -hex 32 | tee /dev/stderr | npx wrangler secret put INGEST_TOKEN
+(umask 077; mkdir -p ~/.config/jan-telemetry; openssl rand -hex 32 | tr -d "\n" > ~/.config/jan-telemetry/ingest_token)
+cat ~/.config/jan-telemetry/ingest_token | npx wrangler secret put INGEST_TOKEN
 pywrangler deploy
-./test/smoke.sh https://jan-telemetry.<account>.workers.dev <token>   # /api/* will 403 until Access is set
+./test/smoke.sh https://jan-telemetry.dhanushnagesh.workers.dev "$(cat ~/.config/jan-telemetry/ingest_token)"   # /api/* will 403 until Access is set
 ```
 
 Then in the Cloudflare dashboard, Zero Trust → Access → Applications: add a self-hosted app
