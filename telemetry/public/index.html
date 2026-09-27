@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Playtime Telemetry</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface-0: #f4f4f2; --surface-1: #fcfcfb; --line: #e4e3df; --grid: #ecebe7;
+  --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #8a8984;
+  --series-1: #2a78d6; --prev: #b9b8b2;
+  --warn-bg: #fff4d6; --warn-ink: #7a5200; --warn-mark: #c98500;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --surface-0: #111110; --surface-1: #1a1a19; --line: #2e2e2c; --grid: #262624;
+    --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
+    --series-1: #3987e5; --prev: #55544f;
+    --warn-bg: #3a2c05; --warn-ink: #ffd27a; --warn-mark: #c98500;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #111110; --surface-1: #1a1a19; --line: #2e2e2c; --grid: #262624;
+  --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
+  --series-1: #3987e5; --prev: #55544f;
+  --warn-bg: #3a2c05; --warn-ink: #ffd27a; --warn-mark: #c98500;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--surface-0); color: var(--text-primary);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1280px; margin: 0 auto; padding: 20px 24px 48px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+h1 { font-size: 18px; margin: 0; font-weight: 600; }
+h2 { font-size: 13px; margin: 0 0 12px; font-weight: 600; color: var(--text-secondary); }
+.filters { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 16px 0; }
+.filters label { display: flex; gap: 6px; align-items: center; color: var(--text-secondary); }
+select, input { font: inherit; color: inherit; background: var(--surface-1); border: 1px solid var(--line);
+  border-radius: 6px; padding: 4px 8px; }
+input[type=number] { width: 90px; }
+.card { background: var(--surface-1); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.grid { display: grid; gap: 16px; }
+.cols-2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.strip { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center; }
+.hero { font-size: 56px; font-weight: 600; line-height: 1; font-variant-numeric: proportional-nums; }
+.hero-label { color: var(--text-secondary); margin-bottom: 6px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 16px; }
+.tile .label { color: var(--text-secondary); font-size: 12px; }
+.tile .value { font-size: 22px; font-weight: 600; }
+.tile .sub { color: var(--text-muted); font-size: 12px; }
+.stale { background: var(--warn-bg); color: var(--warn-ink); border-radius: 6px; padding: 6px 10px; margin-top: 12px;
+  display: flex; gap: 8px; align-items: center; }
+.stale::before { content: "!"; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--warn-mark); color: #fff; font-weight: 700; font-size: 11px; }
+.stale[hidden] { display: none; }
+.muted { color: var(--text-muted); }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); }
+th { color: var(--text-secondary); font-weight: 500; font-size: 12px; }
+td.num, th.num { text-align: right; }
+a { color: var(--series-1); }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart text { fill: var(--text-muted); font-size: 11px; }
+.tip { position: absolute; pointer-events: none; background: var(--surface-1); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 8px; font-size: 12px; white-space: nowrap; box-shadow: 0 2px 8px rgb(0 0 0 / .12);
+  display: none; z-index: 2; }
+.tip b { font-weight: 600; }
+.legend { display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+.legend i { display: inline-block; width: 14px; height: 2px; vertical-align: middle; margin-right: 6px; }
+.hbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; margin: 8px 0; font-size: 12px; }
+.hbar .track { grid-column: 1 / -1; height: 8px; }
+.hbar .fill { height: 8px; background: var(--series-1); border-radius: 0 4px 4px 0; min-width: 2px; }
+.hbar .n { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.mono { font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+section { margin-top: 16px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Playtime telemetry</h1>
+    <span class="muted" id="updated"></span>
+  </header>
+
+  <div class="filters">
+    <label>Range
+      <select id="range">
+        <option value="today">Today</option><option value="24h">Last 24 h</option>
+        <option value="7d">Last 7 days</option><option value="30d">Last 30 days</option>
+        <option value="custom">Custom</option>
+      </select>
+    </label>
+    <span id="custom" hidden>
+      <input type="datetime-local" id="from"> – <input type="datetime-local" id="to">
+    </span>
+    <label><input type="checkbox" id="private"> Include private servers</label>
+    <label><input type="checkbox" id="studio"> Include Studio</label>
+    <label>Place version <input type="number" id="version" placeholder="all" min="0"></label>
+  </div>
+
+  <div class="card">
+    <div class="strip">
+      <div>
+        <div class="hero-label">Players online</div>
+        <div class="hero" id="ccu">–</div>
+      </div>
+      <div class="tiles" id="live-tiles"></div>
+    </div>
+    <div class="stale" id="stale" hidden></div>
+  </div>
+
+  <section class="card">
+    <h2 id="ccu-title">Concurrent players</h2>
+    <div class="legend" id="ccu-legend"></div>
+    <div class="chart" id="ccu-chart"></div>
+  </section>
+
+  <section class="card">
+    <h2 id="summary-title">Today</h2>
+    <div class="tiles" id="summary-tiles"></div>
+  </section>
+
+  <section class="card"><h2>Rounds started per hour</h2><div class="chart" id="rounds-chart"></div></section>
+
+  <section class="grid cols-2">
+    <div class="card"><h2>Round end reasons</h2><div id="reasons"></div></div>
+    <div class="card"><h2>Winning role</h2><div id="winners"></div></div>
+  </section>
+
+  <section class="grid cols-2">
+    <div class="card"><h2>Session length <span class="muted">(ended sessions that started in range)</span></h2>
+      <div class="chart" id="hist-chart"></div></div>
+    <div class="card"><h2>Top players</h2>
+      <table><thead><tr><th>User</th><th class="num">Hours</th><th class="num">Sessions</th><th class="num">Rounds</th></tr></thead>
+      <tbody id="top"></tbody></table></div>
+  </section>
+
+  <section class="card">
+    <h2>Live servers</h2>
+    <table><thead><tr><th>Job ID</th><th class="num">Players</th><th class="num">Version</th><th class="num">Age</th><th class="num">Last seen</th><th></th></tr></thead>
+    <tbody id="servers"></tbody></table>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const nf = new Intl.NumberFormat();
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function dur(sec) {
+  if (sec == null) return "–";
+  sec = Math.round(sec);
+  if (sec < 60) return `${sec}s`;
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`;
+  return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
+}
+const ago = (t, now) => (t == null ? "–" : dur(now - t) + " ago");
+const clock = (t, withDay) => new Date(t * 1000).toLocaleString([], withDay
+  ? { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" } : { hour: "2-digit", minute: "2-digit" });
+
+// Filters live in the URL so a view can be bookmarked.
+const params = new URLSearchParams(location.search);
+for (const id of ["range", "version"]) if (params.has(id)) $(id).value = params.get(id);
+for (const id of ["private", "studio"]) $(id).checked = params.get(id) === "1";
+const toLocalInput = (t) => new Date(t * 1000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+if (params.has("from")) $("from").value = toLocalInput(+params.get("from"));
+if (params.has("to")) $("to").value = toLocalInput(+params.get("to"));
+
+function range() {
+  const now = Math.floor(Date.now() / 1000);
+  switch ($("range").value) {
+    case "today": { const d = new Date(); d.setHours(0, 0, 0, 0); return { from: Math.floor(d / 1000), to: now, live: true }; }
+    case "24h": return { from: now - 86400, to: now, live: true };
+    case "7d": return { from: now - 7 * 86400, to: now, live: true };
+    case "30d": return { from: now - 30 * 86400, to: now, live: true };
+    default: {
+      const f = Date.parse($("from").value) / 1000, t = Date.parse($("to").value) / 1000;
+      if (!(f < t)) return null;
+      return { from: Math.floor(f), to: Math.floor(Math.min(t, now)), live: t >= now };
+    }
+  }
+}
+
+function filterQuery() {
+  const q = new URLSearchParams();
+  if ($("private").checked) q.set("private", "1");
+  if ($("studio").checked) q.set("studio", "1");
+  if ($("version").value) q.set("version", $("version").value);
+  return q;
+}
+
+function syncUrl() {
+  const q = filterQuery();
+  q.set("range", $("range").value);
+  if ($("range").value === "custom") {
+    const r = range();
+    if (r) { q.set("from", r.from); q.set("to", r.to); }
+  }
+  history.replaceState(null, "", "?" + q);
+  $("custom").hidden = $("range").value !== "custom";
+}
+
+async function get(path, extra = {}) {
+  const q = filterQuery();
+  for (const [k, v] of Object.entries(extra)) q.set(k, v);
+  const res = await fetch(`${path}?${q}`, { credentials: "same-origin" });
+  if (!res.ok) throw new Error(`${path}: ${res.status}`);
+  return res.json();
+}
+
+// ---- charts -------------------------------------------------------------
+
+function niceMax(v) {
+  if (v <= 4) return 4;
+  const p = 10 ** Math.floor(Math.log10(v)), n = v / p;
+  return (n <= 2 ? 2 : n <= 5 ? 5 : 10) * p;
+}
+
+function tooltip(el) {
+  let tip = el.querySelector(".tip");
+  if (!tip) { tip = document.createElement("div"); tip.className = "tip"; el.appendChild(tip); }
+  return {
+    show(html, x, y) {
+      tip.innerHTML = html; tip.style.display = "block";
+      const w = el.clientWidth, tw = tip.offsetWidth;
+      tip.style.left = Math.min(Math.max(0, x - tw / 2), w - tw) + "px";
+      tip.style.top = Math.max(0, y - tip.offsetHeight - 10) + "px";
+    },
+    hide() { tip.style.display = "none"; },
+  };
+}
+
+function lineChart(el, { series, prev, from, to, step }) {
+  const W = el.clientWidth || 800, H = 220, L = 36, R = 12, T = 8, B = 24;
+  const max = niceMax(Math.max(1, ...series.map((d) => d.ccu), ...prev.map((d) => d.ccu)));
+  const x = (t) => L + ((t - from) / (to - from)) * (W - L - R);
+  const y = (v) => T + (1 - v / max) * (H - T - B);
+  const path = (pts) => {
+    let d = "", last = null;
+    for (const p of pts) {  // break the line over gaps longer than two steps
+      d += (last == null || p.t - last > step * 2 ? "M" : "L") + x(p.t).toFixed(1) + "," + y(p.ccu).toFixed(1);
+      last = p.t;
+    }
+    return d;
+  };
+  const ticks = [0, max / 2, max];
+  const span = to - from, multiDay = span > 86400 * 1.5;
+  const xt = []; const nX = Math.max(2, Math.floor((W - L - R) / 110));
+  for (let i = 0; i <= nX; i++) xt.push(from + (span * i) / nX);
+  const lastPt = series[series.length - 1];
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Concurrent players over time">
+    ${ticks.map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/>
+      <text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${nf.format(v)}</text>`).join("")}
+    ${xt.map((t, i) => `<text x="${x(t)}" y="${H - 6}" text-anchor="${i === 0 ? "start" : i === nX ? "end" : "middle"}">${clock(t, multiDay)}</text>`).join("")}
+    ${prev.length ? `<path d="${path(prev)}" fill="none" stroke="var(--prev)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>` : ""}
+    <path d="${path(series)}" fill="none" stroke="var(--series-1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${lastPt ? `<circle cx="${x(lastPt.t)}" cy="${y(lastPt.ccu)}" r="4" fill="var(--series-1)" stroke="var(--surface-1)" stroke-width="2"/>` : ""}
+    <line class="xh" y1="${T}" y2="${H - B}" stroke="var(--text-muted)" stroke-width="1" visibility="hidden"/>
+    <circle class="dot" r="4" fill="var(--series-1)" stroke="var(--surface-1)" stroke-width="2" visibility="hidden"/>
+    <rect x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent"/>
+  </svg>`;
+  if (!series.length) {
+    el.querySelector("svg").insertAdjacentHTML("beforeend",
+      `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">No data in this range yet</text>`);
+    return;
+  }
+  const svg = el.querySelector("svg"), xh = svg.querySelector(".xh"), dot = svg.querySelector(".dot"), tip = tooltip(el);
+  const prevBy = new Map(prev.map((p) => [p.t, p.ccu]));
+  svg.addEventListener("mousemove", (e) => {
+    const r = svg.getBoundingClientRect(), mx = ((e.clientX - r.left) / r.width) * W;
+    const t = from + ((mx - L) / (W - L - R)) * (to - from);
+    let best = series[0];
+    for (const p of series) if (Math.abs(p.t - t) < Math.abs(best.t - t)) best = p;
+    const px = x(best.t), py = y(best.ccu);
+    xh.setAttribute("x1", px); xh.setAttribute("x2", px); xh.setAttribute("visibility", "visible");
+    dot.setAttribute("cx", px); dot.setAttribute("cy", py); dot.setAttribute("visibility", "visible");
+    const pv = prevBy.get(best.t);
+    tip.show(`${clock(best.t, multiDay)}<br><b>${nf.format(best.ccu)}</b> players · ${best.servers} servers` +
+      (pv != null ? `<br><span class="muted">Day before: ${nf.format(pv)}</span>` : ""),
+      (px / W) * r.width, (py / H) * r.height);
+  });
+  svg.addEventListener("mouseleave", () => { xh.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); tip.hide(); });
+}
+
+function columnChart(el, data, { label, fmt = nf.format, H = 180 }) {
+  const W = el.clientWidth || 400, L = 30, R = 8, T = 8, B = 24;
+  const max = niceMax(Math.max(1, ...data.map((d) => d.n)));
+  const band = (W - L - R) / Math.max(1, data.length), bw = Math.min(24, band - 2);
+  const y = (v) => T + (1 - v / max) * (H - T - B);
+  const every = Math.ceil(data.length / Math.floor((W - L - R) / 48));
+  const bar = (d, i) => {
+    const cx = L + band * i + band / 2, top = y(d.n), h = H - B - top, r = Math.min(4, h);
+    const x0 = cx - bw / 2;
+    const shape = h <= 0 ? "" : `<path d="M${x0},${H - B}V${top + r}q0,-${r} ${r},-${r}h${bw - 2 * r}q${r},0 ${r},${r}V${H - B}Z" fill="var(--series-1)"/>`;
+    return `${shape}<rect class="hit" data-i="${i}" x="${L + band * i}" y="${T}" width="${band}" height="${H - T - B}" fill="transparent"/>
+      ${i % every === 0 ? `<text x="${cx}" y="${H - 6}" text-anchor="middle">${esc(d.label)}</text>` : ""}`;
+  };
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(label)}">
+    ${[0, max / 2, max].map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/>
+      <text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${nf.format(v)}</text>`).join("")}
+    ${data.map(bar).join("")}
+  </svg>`;
+  const svg = el.querySelector("svg"), tip = tooltip(el);
+  svg.addEventListener("mousemove", (e) => {
+    const i = e.target.dataset?.i; if (i == null) return tip.hide();
+    const d = data[i], r = svg.getBoundingClientRect(), cx = L + band * i + band / 2;
+    tip.show(`${esc(d.title ?? d.label)}<br><b>${fmt(d.n)}</b>`, (cx / W) * r.width, (y(d.n) / H) * r.height);
+  });
+  svg.addEventListener("mouseleave", () => tip.hide());
+}
+
+function hbars(el, rows) {
+  if (!rows.length) { el.innerHTML = `<div class="muted">No rounds in range</div>`; return; }
+  const max = Math.max(...rows.map((r) => r.n));
+  el.innerHTML = rows.map((r) => `<div class="hbar"><span>${esc(r.label)}</span><span class="n">${nf.format(r.n)}</span>
+    <div class="track"><div class="fill" style="width:${(r.n / max) * 100}%"></div></div></div>`).join("");
+}
+
+function tile(label, value, sub = "") {
+  return `<div class="tile"><div class="label">${label}</div><div class="value">${value}</div>${sub ? `<div class="sub">${sub}</div>` : ""}</div>`;
+}
+
+// ---- panels -------------------------------------------------------------
+
+async function loadLive() {
+  const d = await get("/api/live");
+  $("ccu").textContent = nf.format(d.ccu);
+  const s = d.states, inRound = s.hider + s.seeker + s.jailed;
+  $("live-tiles").innerHTML =
+    tile("Servers up", nf.format(d.servers.length)) +
+    tile("In a round", nf.format(inRound), `${s.hider} hiding · ${s.seeker} seeking · ${s.jailed} jailed`) +
+    tile("In lobby", nf.format(s.lobby + s.practice), s.practice ? `${s.practice} practising` : "") +
+    tile("AFK", nf.format(s.afk)) +
+    tile("Last data", d.lastData ? ago(d.lastData, d.now) : "none");
+  $("stale").hidden = !d.stale;
+  if (d.stale) $("stale").textContent = `No presence for ${dur(d.now - d.lastData)} while servers are marked open. Ingest may be down.`;
+  $("servers").innerHTML = d.servers.length ? d.servers.map((sv) => `<tr>
+      <td class="mono">${esc(sv.jobId || "(Studio)")}</td>
+      <td class="num">${sv.players}${sv.maxPlayers ? " / " + sv.maxPlayers : ""}</td>
+      <td class="num">${sv.placeVersion ?? "–"}</td>
+      <td class="num">${dur(d.now - sv.firstSeen)}</td>
+      <td class="num">${ago(sv.lastSeen, d.now)}</td>
+      <td class="muted">${[sv.private && "private", sv.studio && "Studio"].filter(Boolean).join(", ")}</td></tr>`).join("")
+    : `<tr><td colspan="6" class="muted">No live servers</td></tr>`;
+}
+
+async function loadRange() {
+  const r = range();
+  if (!r) return;
+  const span = r.to - r.from;
+  const step = span <= 6 * 3600 ? 60 : span <= 2 * 86400 ? 300 : span <= 8 * 86400 ? 1800 : 3600;
+  const multiDay = span > 86400 * 1.5;
+  const rq = { from: r.from, to: r.to };
+  const [ccu, sum, top, rounds] = await Promise.all([
+    get("/api/ccu", { ...rq, step }), get("/api/summary", rq), get("/api/top", { ...rq, limit: 15 }), get("/api/rounds", rq),
+  ]);
+
+  const showPrev = span <= 86400 + 60;
+  $("ccu-legend").innerHTML = showPrev
+    ? `<span><i style="background:var(--series-1)"></i>This period</span><span><i style="background:var(--prev)"></i>Same hours, day before</span>` : "";
+  $("ccu-title").textContent = `Concurrent players (public servers${step > 60 ? `, peak per ${step / 60} min` : ""})`;
+  lineChart($("ccu-chart"), { series: ccu.series, prev: showPrev ? ccu.previous : [], from: r.from, to: r.to, step });
+
+  const label = { today: "Today", "24h": "Last 24 hours", "7d": "Last 7 days", "30d": "Last 30 days" }[$("range").value]
+    || `${clock(r.from, true)} – ${clock(r.to, true)}`;
+  $("summary-title").textContent = label;
+  $("summary-tiles").innerHTML =
+    tile("Hours played", nf.format(sum.hours), sum.openSessions ? `includes ${sum.openSessions} live sessions` : "") +
+    tile("Unique players", nf.format(sum.uniquePlayers)) +
+    tile("Sessions", nf.format(sum.sessions)) +
+    tile("Average session", dur(sum.avgSeconds), `${nf.format(sum.closedSessions)} ended`) +
+    tile("Median session", dur(sum.medianSeconds)) +
+    tile("Time AFK", sum.afkShare == null ? "–" : (sum.afkShare * 100).toFixed(1) + "%");
+
+  columnChart($("hist-chart"), sum.histogram.map((h) => ({ label: h.bucket, title: `${h.bucket} min`, n: h.n })),
+    { label: "Session length histogram" });
+
+  const byHour = new Map(rounds.perHour.map((p) => [p.t, p.n]));
+  const hours = [];
+  for (let t = Math.floor(r.from / 3600) * 3600; t < r.to && hours.length < 24 * 31; t += 3600) {
+    hours.push({ label: multiDay ? new Date(t * 1000).toLocaleDateString([], { month: "short", day: "numeric" })
+      : new Date(t * 1000).getHours() + ":00", title: clock(t, true), n: byHour.get(t) || 0 });
+  }
+  columnChart($("rounds-chart"), hours, { label: "Rounds started per hour" });
+  hbars($("reasons"), rounds.endReasons.map((x) => ({ label: x.reason, n: x.n })));
+  hbars($("winners"), rounds.winningRoles.map((x) => ({ label: x.role, n: x.n })));
+
+  $("top").innerHTML = top.players.length ? top.players.map((p) => `<tr>
+      <td><a href="https://www.roblox.com/users/${encodeURIComponent(p.userId)}/profile" target="_blank" rel="noopener">${esc(p.userId)}</a></td>
+      <td class="num">${(p.seconds / 3600).toFixed(2)}</td><td class="num">${p.sessions}</td><td class="num">${p.rounds}</td></tr>`).join("")
+    : `<tr><td colspan="4" class="muted">No sessions in range</td></tr>`;
+}
+
+// ---- polling ------------------------------------------------------------
+
+let rangeTimer;
+function run(fn) { return fn().then(() => { $("updated").textContent = "Updated " + new Date().toLocaleTimeString(); })
+  .catch((e) => { $("updated").textContent = "Error: " + e.message; }); }
+
+function scheduleRange() {
+  clearTimeout(rangeTimer);
+  const r = range();
+  run(loadRange);
+  // A range that has ended cannot change, and long ranges are costly to re-scan: poll them less.
+  if (!r || !r.live) return;
+  const every = r.to - r.from > 2 * 86400 ? 300_000 : 60_000;
+  rangeTimer = setTimeout(scheduleRange, every);
+}
+
+function refilter() { syncUrl(); run(loadLive); scheduleRange(); }
+for (const id of ["range", "private", "studio", "version", "from", "to"]) $(id).addEventListener("change", refilter);
+window.addEventListener("resize", () => { clearTimeout(window._rs); window._rs = setTimeout(() => run(loadRange), 200); });
+
+syncUrl();
+run(loadLive);
+setInterval(() => { if (!document.hidden) run(loadLive); }, 15_000);
+scheduleRange();
+</script>
+</body>
+</html>
