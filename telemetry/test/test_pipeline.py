@@ -229,8 +229,19 @@ def test_rounds_and_delete_user():
     r = asyncio.run(api.rounds(db, q(**{"from": T0 - 3600, "to": T0 + 3600}), T0 + 400))
     assert sum(x["n"] for x in r["perHour"]) == 2
     assert {x["role"] for x in r["winningRoles"]} == {"seeker", "hider"}
-    assert db.rows("SELECT started_at FROM rounds WHERE round_id = 'r2'")[0]["started_at"] == T0 + 220
+    assert db.rows("SELECT started_at FROM rounds WHERE round_id = 'job-a:r2'")[0]["started_at"] == T0 + 220
 
     db.run(api.delete_user_statements(1))
     assert db.counts()["sessions"] == 0
     assert all(json.loads(e["body"]).get("userId") != 1 for e in db.rows("SELECT body FROM events"))
+
+
+def test_round_ids_are_per_server():
+    db = DB()
+    ingest_batch(db, [env("round_start", T0, roundId=1, map="Mall"),
+                      {**env("round_start", T0 + 5, roundId=1, map="Pagoda"), "jobId": "job-b"},
+                      env("round_end", T0 + 100, roundId=1, reason="pot filled", winningRole="Hider", seconds=99.6)], T0 + 100)
+    rows = {r["round_id"]: r for r in db.rows("SELECT * FROM rounds")}
+    assert set(rows) == {"job-a:1", "job-b:1"}
+    assert (rows["job-a:1"]["map"], rows["job-a:1"]["winning_role"], rows["job-a:1"]["started_at"]) == ("Mall", "Hider", T0)
+    assert rows["job-b:1"]["ended_at"] is None

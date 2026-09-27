@@ -178,13 +178,13 @@ def round_end(ev, job, at, pv, round_id):
     )]
 
 
-def store_event(ev, job, at, now):
+def store_event(ev, job, at, now, round_id):
     body = json.dumps(ev, separators=(",", ":"), sort_keys=True)
     key = hashlib.sha1(body.encode()).hexdigest()
     return [(
         "INSERT INTO events (key, at, received_at, job_id, round_id, event, level, body)"
         " VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(key) DO NOTHING",
-        [key, at, now, job, ev.get("roundId"), ev["event"], ev.get("level") or "INFO", body],
+        [key, at, now, job, round_id, ev["event"], ev.get("level") or "INFO", body],
     )]
 
 
@@ -199,7 +199,8 @@ def statements_for(events: list, now: int, drop_info: set) -> tuple[list, int]:
                 raise ValueError
             job = ev.get("jobId") or ""
             pv = _int(ev.get("placeVersion"))
-            round_id = ev.get("roundId")
+            # GameLoop's roundId is a counter per server (1, 2, 3...), so it is only unique with the job.
+            round_id = f"{job}:{ev['roundId']}" if ev.get("roundId") is not None else None
             if name == "session_start":
                 out += session_start(ev, job, at, pv)
             elif name == "session_end":
@@ -216,7 +217,7 @@ def statements_for(events: list, now: int, drop_info: set) -> tuple[list, int]:
             level = ev.get("level") or "INFO"
             if name in OWN_TABLE or (level == "INFO" and name in drop_info):
                 continue
-            out += store_event(ev, job, at, now)
+            out += store_event(ev, job, at, now, round_id)
         except (KeyError, TypeError, ValueError, AttributeError):
             skipped += 1
     return out, skipped
