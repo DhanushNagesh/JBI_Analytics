@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "telemetry",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd telemetry && pywrangler dev --port 8787"],
+      "port": 8787
+    }
+  ]
+}

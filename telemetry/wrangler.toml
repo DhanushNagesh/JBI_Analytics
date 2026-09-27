@@ -1,0 +1,27 @@
+name = "jan-telemetry"
+main = "src/entry.py"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["python_workers"]
+
+[assets]
+directory = "public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "jan-telemetry"
+# Replace with the id printed by `npx wrangler d1 create jan-telemetry`. Local dev ignores it.
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[triggers]
+crons = ["* * * * *"]
+
+[vars]
+# INFO events not stored in `events`. shot fires on every shot and would eat the D1 write budget.
+DROP_INFO = "shot"
+# Cloudflare Access: team domain (https://<team>.cloudflareaccess.com) and the application AUD tag.
+# Both must be set in production; /api/* is refused without a valid Access JWT.
+ACCESS_TEAM_DOMAIN = ""
+ACCESS_AUD = ""
+# Set to "1" only in .dev.vars for local dev. Skips the Access JWT check.
+DEV_NO_AUTH = ""
