@@ -20,7 +20,7 @@ crons = ["* * * * *"]
 DROP_INFO = "shot"
 # Cloudflare Access: team domain (https://<team>.cloudflareaccess.com) and the application AUD tag.
 # Both must be set in production; /api/* is refused without a valid Access JWT.
-ACCESS_TEAM_DOMAIN = ""
-ACCESS_AUD = ""
+ACCESS_TEAM_DOMAIN = "https://autumn-paper-31fe.cloudflareaccess.com"
+ACCESS_AUD = "41b7351b2075febc8510c50c62f6eca39857f29f86240a845bb86e32a24823d3"
 # Set to "1" only in .dev.vars for local dev. Skips the Access JWT check.
 DEV_NO_AUTH = ""
