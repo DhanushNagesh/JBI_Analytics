@@ -1,6 +1,6 @@
 # RBX Analytics
 
-**[GAME NAME](https://www.roblox.com/games/TODO)** · dashboard is private (behind Cloudflare Access)
+dashboard is private (behind Cloudflare Access)
 
 ![Players in game right now](https://img.shields.io/endpoint?url=https%3A%2F%2Fjan-telemetry.dhanushnagesh.workers.dev%2Fbadge%2Fccu&cacheSeconds=300)
 ![Average session length today](https://img.shields.io/endpoint?url=https%3A%2F%2Fjan-telemetry.dhanushnagesh.workers.dev%2Fbadge%2Fplaytime&cacheSeconds=300)
@@ -8,18 +8,16 @@
 *These two badges come from the live pipeline. They can be up to about 5 minutes old because
 Shields.io and GitHub both cache them.*
 
-[GAME NAME] is a hide-and-seek game I made on Roblox. Players spawn in a lobby, get split
-into hiders and seekers, and seekers tag hiders into jail until the timer runs out or
-everyone is caught. So far it has had **6,000+ unique players** and a **peak of 100
-concurrent players** (both from the Roblox creator dashboard). RBX Analytics is the
-telemetry pipeline I built for it: the game servers send session, round and presence events
+JBI Analytics is the
+telemetry pipeline I built for my game: the game servers send session, round and presence events
 to a Cloudflare Worker, the Worker stores them in a D1 (SQLite) database, and a small
 dashboard shows live players, session lengths and round stats.
 
 ## Why I built this
 
 Roblox's creator dashboard gives you daily totals like visits, average playtime and
-concurrent users, but it doesn't let you look at individual sessions or query the raw data.
+concurrent users, but it doesn't let you look at individual sessions or query the raw data. 
+Also data can be 1-2 days behind due to Roblox's quality assurance with player data. 
 I wanted to answer questions like "how long does a session last if you take out AFK time?",
 "do people leave after their first round?" and "which way do rounds usually end?", and to
 see whether a game update actually changed any of that. None of those are answerable from
@@ -226,24 +224,9 @@ session with the time range, so a session that crosses midnight is split between
 
 ## Limitations
 
-- **Small sample.** Peak is 100 concurrent players and most of the day is a lot lower. A
-  single day's cohort might be a few dozen new players, so D1 retention can move 5 to 10
-  points between days just from noise. I should compare weekly averages and always list
-  the sample size next to a percentage. Same for session length percentiles: the p90 of a
-  quiet day is basically a few players.
-- **My "first day" isn't the player's real first day.** Most of the 6,000+ players played
-  before this pipeline existed, so the first weeks of cohorts are full of returning
-  players who look new. That makes early retention look better than it is. Sessions are
-  also deleted after 90 days, so after that "new" means "not seen in 90 days".
-- **No revenue or funnel data**, as described above.
 - **Crashed servers cut sessions short by a bit.** A session closed by timeout ends at
   the last presence snapshot the Worker got, so it can be a little shorter than it really
   was (up to the gap between two snapshots). These rows have `end_reason = 'timeout'` if you want to exclude them.
-- **Game server clocks.** `at` comes from the Roblox server. I also save the Worker's
-  `received_at` on servers and events so I can spot clock skew, but I don't correct for it.
-- **Round field names were a guess.** The round columns (`map`, `players`, `winning_role`)
-  are read from a few likely field names. If the game uses a different name, the column is
-  null. The raw round events are also kept in `events` for 14 days so I can backfill.
 - **Events buffered on a server that crashes** (up to 10 seconds' worth) are lost. The next
   presence snapshot fixes the session table, but other events are just gone.
 - **Player IDs only.** I don't store usernames or anything besides the user ID and account
