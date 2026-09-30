@@ -85,6 +85,10 @@ async def access_ok(request, env) -> bool:
         return False
 
 
+# Public and cached for a minute per isolate. Shields.io polls these for the README badges.
+BADGE_TTL = 60
+_badges = {}
+
 API = {"/api/live": api.live, "/api/summary": api.summary, "/api/ccu": api.ccu,
        "/api/top": api.top, "/api/rounds": api.rounds}
 
@@ -100,6 +104,9 @@ class Default(WorkerEntrypoint):
             if method != "POST":
                 return _text("method not allowed", 405)
             return await self.ingest(request, db, now)
+
+        if path.startswith("/badge/") and method == "GET":
+            return await self.badge(path.rsplit("/", 1)[1], db, now)
 
         if not await access_ok(request, self.env):
             return _text("forbidden", 403)
@@ -136,6 +143,17 @@ class Default(WorkerEntrypoint):
         if skipped:
             print(f"ingest: skipped {skipped} malformed events")
         return Response("", status=204)
+
+    async def badge(self, metric, db, now):
+        hit = _badges.get(metric)
+        if hit is None or now - hit[0] >= BADGE_TTL:
+            try:
+                hit = (now, await api.badge(db, metric, now))
+            except KeyError:
+                return _text("not found", 404)
+            _badges[metric] = hit
+        return Response(json.dumps(hit[1]), headers={
+            "content-type": "application/json", "cache-control": f"public, max-age={BADGE_TTL}"})
 
     async def scheduled(self, controller, env=None, ctx=None):
         await D1(self.env.DB).batch(cron.statements_for(int(time.time())))

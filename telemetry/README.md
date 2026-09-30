@@ -36,13 +36,18 @@ pywrangler deploy
 ```
 
 Then in the Cloudflare dashboard, Zero Trust → Access → Applications: add a self-hosted app
-for the Worker's hostname covering `/`, with a bypass policy for `/ingest`. Copy the app's AUD
+for the Worker's hostname covering `/`, with bypass policies for `/ingest` and `/badge/*`. Copy the app's AUD
 tag and team domain into `ACCESS_AUD` and `ACCESS_TEAM_DOMAIN` in wrangler.toml and redeploy.
 The Worker verifies the Access JWT itself, so `/api/*` stays closed even on a hostname Access
 does not cover.
 
 Game side: set `ServerStorage.TelemetryEndpoint` to `https://…/ingest` and
 `ServerStorage.TelemetryToken` to the same token.
+
+## README badges
+
+`/badge/ccu` and `/badge/playtime` are public and return Shields.io endpoint JSON. Each Worker
+isolate caches them for 60 s, and Shields caches for 300 s on top of that.
 
 ## Budget (free tier)
 
