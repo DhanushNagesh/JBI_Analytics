@@ -155,3 +155,21 @@ def delete_user_statements(user_id: int) -> list:
         ("DELETE FROM sessions WHERE user_id = ?", [user_id]),
         ("DELETE FROM events WHERE json_extract(body, '$.userId') = ?", [user_id]),
     ]
+
+
+def _duration(secs):
+    m, s = divmod(round(secs), 60)
+    return f"{m}m {s:02d}s"
+
+
+async def badge(db, metric, now):
+    """Shields.io endpoint JSON for the README. Public, so it only exposes two aggregate numbers."""
+    if metric == "ccu":
+        return {"schemaVersion": 1, "label": "playing now", "color": "2a78d6",
+                "message": str((await live(db, {}, now))["ccu"])}
+    if metric == "playtime":
+        # Sessions that started since UTC midnight and have ended, same as the dashboard's average.
+        s = await summary(db, {"from": str(now - now % 86400), "to": str(now)}, now)
+        msg = _duration(s["avgSeconds"]) if s["avgSeconds"] is not None else "no sessions yet"
+        return {"schemaVersion": 1, "label": "avg session today (UTC)", "color": "2a78d6", "message": msg}
+    raise KeyError(metric)

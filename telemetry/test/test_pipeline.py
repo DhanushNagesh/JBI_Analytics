@@ -209,6 +209,23 @@ def test_live_and_summary():
     assert [(p["userId"], p["seconds"]) for p in top["players"]] == [(1, 600), (2, 430)]
 
 
+def test_badges():
+    db = DB()
+    day = T0 - T0 % 86400
+    empty = asyncio.run(api.badge(db, "playtime", day + 60))
+    assert empty["message"] == "no sessions yet"
+    ingest_batch(db, [
+        start(1, "s1", day + 100), end(1, "s1", day + 100, day + 700),     # 10 min
+        start(2, "s2", day + 200), end(2, "s2", day + 200, day + 290),     # 90 s
+        start(3, "s3", day + 300),
+        pres(day + 400, [(3, "s3", day + 300, "seeker")]),
+    ], day + 400)
+    assert asyncio.run(api.badge(db, "ccu", day + 450))["message"] == "1"
+    assert asyncio.run(api.badge(db, "playtime", day + 800))["message"] == "5m 45s"
+    with pytest.raises(KeyError):
+        asyncio.run(api.badge(db, "revenue", day))
+
+
 def test_ccu_series_and_previous_day():
     db = DB()
     m = T0 - T0 % 3600
