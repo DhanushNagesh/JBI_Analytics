@@ -125,25 +125,6 @@ What I don't track:
   I could build a rough one from `sessions.rounds`, but I haven't.
 - **Where players come from** (search, home page, sponsored), and device type.
 
-## Findings
-
-**I don't have before/after numbers yet.** The pipeline was finished at the end of
-September 2026, and I need a few weeks of data before and after a change for a comparison
-to mean anything. Until this section is filled in, I'm not claiming any improvement.
-
-When I have them, they'll go here in this format:
-
-| Metric | Before | After | Change | Period / sample size |
-|---|---|---|---|---|
-| D1 retention | TODO | TODO | TODO | TODO |
-| D7 retention | TODO | TODO | TODO | TODO |
-| Median session length | TODO | TODO | TODO | TODO |
-| Revenue | not tracked | | | |
-
-**What changed:** TODO (the specific update, and the date it shipped)
-
-**Why I think it caused the change:** TODO
-
 ## Data model
 
 The game sends a flat JSON array of events. Every event has `event`, `level`, `at` (unix
