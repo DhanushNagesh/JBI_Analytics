@@ -121,9 +121,8 @@ What I don't track:
 
 - **Revenue.** No purchase events are logged, so I have nothing on Robux spent, game passes
   or developer products. For now revenue only comes from Roblox's own dashboard.
-- **Funnels.** There's no step-by-step funnel (join → first round → second round → ...).
-  I could build a rough one from `sessions.rounds`, but I haven't.
-- **Where players come from** (search, home page, sponsored), and device type.
+- **Funnels.** Funnels work better when built through Roblox's dashboard and are close to real-time
+
 
 ## Data model
 
