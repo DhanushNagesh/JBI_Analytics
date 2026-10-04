@@ -30,7 +30,8 @@ class DB:
     def __init__(self):
         self.c = sqlite3.connect(":memory:")
         self.c.row_factory = sqlite3.Row
-        self.c.executescript((ROOT / "migrations" / "0001_init.sql").read_text())
+        for m in sorted((ROOT / "migrations").glob("*.sql")):
+            self.c.executescript(m.read_text())
 
     def run(self, stmts):
         with self.c:
