@@ -3,8 +3,8 @@
 dashboard is private (behind Cloudflare Access)
 
 10K+ Total Unique Players
-![Players in game right now](https://img.shields.io/endpoint?url=https%3A%2F%2Fjan-telemetry.dhanushnagesh.workers.dev%2Fbadge%2Fccu&cacheSeconds=300)
-![Average session length today](https://img.shields.io/endpoint?url=https%3A%2F%2Fjan-telemetry.dhanushnagesh.workers.dev%2Fbadge%2Fplaytime&cacheSeconds=300)
+(![Players in game right now](https://img.shields.io/endpoint?url=https%3A%2F%2Fjan-telemetry.dhanushnagesh.workers.dev%2Fbadge%2Fccu&cacheSeconds=300)
+![Average session length today](https://img.shields.io/endpoint?url=https%3A%2F%2Fjan-telemetry.dhanushnagesh.workers.dev%2Fbadge%2Fplaytime&cacheSeconds=300))
 
 *These two badges come from the live pipeline. They can be up to about 5 minutes old because
 Shields.io and GitHub both cache them.*
